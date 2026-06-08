@@ -101,13 +101,71 @@ fn link_homebrew_m1(name: &str) -> PathBuf {
     include
 }
 
-/// Find package. By default, it will try to find vcpkg first, then homebrew(currently only for Mac M1).
+/// Link pkg-config package.
+fn link_pkgconfig(name: &str) -> Vec<PathBuf> {
+    let mut paths = Vec::new();
+    if let Ok(pkg) = pkg_config::Config::new().probe(name) {
+        for lib in &pkg.libs {
+            println!("cargo:rustc-link-lib={}", lib);
+        }
+        for path in &pkg.link_paths {
+            println!("cargo:rustc-link-search={}", path.to_str().unwrap());
+        }
+        for path in &pkg.include_paths {
+            println!("cargo:include={}", path.to_str().unwrap());
+            paths.push(path.clone());
+        }
+        paths
+    } else {
+        panic!("Could not find {} via pkg-config", name);
+    }
+}
+
+/// Link system libraries directly (fallback for Linux).
+fn link_system_lib(name: &str) -> Vec<PathBuf> {
+    let mut paths = Vec::new();
+    println!("cargo:rustc-link-lib={}", name.trim_start_matches("lib"));
+    let include_path = PathBuf::from("/usr/include");
+    println!("cargo:include={}", include_path.to_str().unwrap());
+    paths.push(include_path);
+    paths
+}
+
+/// Find package. By default, it will try to find vcpkg first, then pkg-config, then system libraries, then homebrew(currently only for Mac M1).
 fn find_package(name: &str) -> Vec<PathBuf> {
     if let Ok(vcpkg_root) = std::env::var("VCPKG_ROOT") {
         vec![link_vcpkg(vcpkg_root.into(), name)]
+    } else if let Ok(_) = pkg_config::Config::new().probe(name) {
+        link_pkgconfig(name)
     } else {
-        // Try using homebrew
-        vec![link_homebrew_m1(name)]
+        // Try using system libraries on Linux
+        let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
+        if target_os == "linux" {
+            link_system_lib(name)
+        } else {
+            // Try using homebrew
+            vec![link_homebrew_m1(name)]
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct RenameCallback;
+
+impl bindgen::callbacks::ParseCallbacks for RenameCallback {
+    fn item_name(&self, original_name: &str) -> Option<String> {
+        let new_name = original_name
+            .replace("_(unnamed_at_", "_unnamed_at_")
+            .replace("/", "_")
+            .replace("\\", "_")
+            .replace(":", "_")
+            .replace(".", "_")
+            .replace("-", "_");
+        if new_name != original_name {
+            Some(new_name)
+        } else {
+            None
+        }
     }
 }
 
@@ -125,7 +183,8 @@ fn generate_bindings(
         .rustified_enum("^v.*")
         .trust_clang_mangling(false)
         .layout_tests(false) // breaks 32/64-bit compat
-        .generate_comments(false); // vpx comments have prefix /*!\
+        .generate_comments(false) // vpx comments have prefix /*!\
+        .parse_callbacks(Box::new(RenameCallback));
 
     for dir in include_paths {
         b = b.clang_arg(format!("-I{}", dir.display()));
