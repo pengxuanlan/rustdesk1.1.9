@@ -85,6 +85,11 @@ fn install_oboe() {
 
 #[cfg(feature = "flutter")]
 fn gen_flutter_rust_bridge() {
+    // Skip ffigen if generated bridge already exists (for cross-compilation)
+    if std::path::Path::new("flutter/lib/generated_bridge.dart").exists() {
+        println!("cargo:warning=Using existing generated_bridge.dart, skipping ffigen");
+        return;
+    }
     use lib_flutter_rust_bridge_codegen::{
         config_parse, frb_codegen, get_symbols_if_no_duplicates, RawOpts,
     };

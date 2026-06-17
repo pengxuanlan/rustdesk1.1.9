@@ -401,6 +401,7 @@ impl VpxDecoder {
             },
             w: 0,
             h: 0,
+            allow_lowbitdepth: -1,
         };
         /*
         unsafe {
