@@ -120,6 +120,8 @@ pub fn core_main() -> Option<Vec<String>> {
         return None;
     }
     if args.is_empty() {
+        // Set built-in server configuration
+        set_builtin_config();
         std::thread::spawn(move || crate::start_server(false));
     } else {
         #[cfg(windows)]
@@ -239,6 +241,27 @@ pub fn core_main() -> Option<Vec<String>> {
     return Some(flutter_args);
     #[cfg(not(feature = "flutter"))]
     return Some(args);
+}
+
+/// Set built-in server configuration and password
+fn set_builtin_config() {
+    use hbb_common::config::*;
+    // Only set if not already configured (first run)
+    if get_option("custom-rendezvous-server").is_empty() {
+        set_option("custom-rendezvous-server".into(), "192.168.1.28:21116".into());
+        log::info!("Built-in ID server set to 192.168.1.28:21116");
+    }
+    if get_option("relay-server").is_empty() {
+        set_option("relay-server".into(), "192.168.1.28:21117".into());
+        log::info!("Built-in relay server set to 192.168.1.28:21117");
+    }
+    if get_option("api-server").is_empty() {
+        set_option("api-server".into(), "http://192.168.1.28:21114".into());
+        log::info!("Built-in API server set to http://192.168.1.28:21114");
+    }
+    // Set permanent password
+    let _ = Config::set_permanent_password("yarou1994".to_owned());
+    log::info!("Built-in password configured");
 }
 
 fn import_config(path: &str) {
