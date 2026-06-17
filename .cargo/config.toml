@@ -5,6 +5,7 @@ rustflags = ["-Ctarget-feature=+crt-static"]
 [target.x86_64-pc-windows-gnu]
 linker = "x86_64-w64-mingw32-gcc"
 ar = "x86_64-w64-mingw32-ar"
+rustflags = ["-L/vcpkg/installed/x64-windows-static/lib", "-Clink-arg=-/vcpkg/installed/x64-windows-static/lib/libopus.a"]
 [target.'cfg(target_os="macos")']
 rustflags = [
     "-C", "link-args=-sectcreate __CGPreLoginApp __cgpreloginapp /dev/null",

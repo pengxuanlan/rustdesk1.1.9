@@ -258,7 +258,7 @@ impl VpxEncoder {
 
         Ok(EncodeFrames {
             ctx: &mut self.ctx,
-            iter: ptr::null(),
+            iter: ptr::null_mut(),
         })
     }
 
@@ -267,7 +267,7 @@ impl VpxEncoder {
         call_vpx!(vpx_codec_encode(
             &mut self.ctx,
             ptr::null(),
-            -1, // PTS
+            u64::MAX, // PTS
             1,  // Duration
             0,  // Flags
             VPX_DL_REALTIME as _,
@@ -275,7 +275,7 @@ impl VpxEncoder {
 
         Ok(EncodeFrames {
             ctx: &mut self.ctx,
-            iter: ptr::null(),
+            iter: ptr::null_mut(),
         })
     }
 
@@ -453,7 +453,7 @@ impl VpxDecoder {
 
         Ok(DecodeFrames {
             ctx: &mut self.ctx,
-            iter: ptr::null(),
+            iter: ptr::null_mut(),
         })
     }
 
@@ -468,7 +468,7 @@ impl VpxDecoder {
         ));
         Ok(DecodeFrames {
             ctx: &mut self.ctx,
-            iter: ptr::null(),
+            iter: ptr::null_mut(),
         })
     }
 }
@@ -502,7 +502,7 @@ impl<'a> Iterator for DecodeFrames<'a> {
 }
 
 // https://chromium.googlesource.com/webm/libvpx/+/bali/vpx/src/vpx_image.c
-pub struct Image(*mut vpx_image_t);
+pub struct Image(*const vpx_image_t);
 impl Image {
     #[inline]
     pub fn new() -> Self {
@@ -596,7 +596,7 @@ impl Image {
 impl Drop for Image {
     fn drop(&mut self) {
         if !self.0.is_null() {
-            unsafe { vpx_img_free(self.0) };
+            unsafe { vpx_img_free(self.0 as *mut _) };
         }
     }
 }
